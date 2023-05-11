@@ -16,9 +16,12 @@ namespace CSGO_ESP
         public bool enable_ESP = true;
         public bool enable_HP = true;
         public bool enable_AimBot = true;
+        public bool enable_Skin_changer = false;
         public int AimBot_key = 0x6;
+        public int TriggerBot_key = 0x5;
         public int team_line_width = 1;
         public int enemy_line_width = 1;
+        public int aimBotMaxAngle = 10;
 
         public Form2()
         {
@@ -27,7 +30,7 @@ namespace CSGO_ESP
 
         private void Form2_Load(object sender, EventArgs e)
         {
-
+            TopMost = true;
         }
 
 
@@ -67,6 +70,18 @@ namespace CSGO_ESP
             }
         }
 
+        private void checkBox4_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox4.Checked)
+            {
+                enable_Skin_changer = true;
+            }
+            else
+            {
+                enable_Skin_changer = false;
+            }
+        }
+
         private void trackBar1_Scroll(object sender, EventArgs e)
         {
             team_line_width = trackBar1.Value;
@@ -84,6 +99,11 @@ namespace CSGO_ESP
             int skinID = int.Parse(textBox4.Text);
             float wear = 0.0000000001f;
             mainForm.SkinchangerButton(itemID, skinID, wear);
+        }
+
+        private void trackBar3_Scroll(object sender, EventArgs e)
+        {
+            aimBotMaxAngle = trackBar3.Value;
         }
     }
 }

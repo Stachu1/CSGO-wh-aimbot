@@ -19,10 +19,12 @@ namespace CSGO_ESP
 {
     public partial class Form1 : Form
     {
-        const int LocalPlayer = 0xDEA964;
-        const int EntityList = 0x4DFFF14;
-        const int Viewmatrix = 0x4DF0D44;
-        const int ClientState = 0x59F194;
+        const int LocalPlayer = 0xDE997C;
+        const int EntityList = 0x4DFEECC;
+        const int Viewmatrix = 0x4DEFD14;
+        const int ClientState = 0x59F19C;
+        const int CrosshairId = 0x11838;
+        const int ForceAttack = 0x322CD38;
 
         const int vecOrigin = 0x138;
         const int vecViewOffset = 0x108;
@@ -35,6 +37,8 @@ namespace CSGO_ESP
         const int ItemIDHigh = 0x2FD0;
         const int ClientState_ViewAngles = 0x4D90;
         const int BoneMatrix = 0x26A8;
+
+        int ch_value = 0;
 
         Pen teamPen = new Pen(Color.FromArgb(0, 0, 255), 1);
         Pen enemyPen = new Pen(Color.FromArgb(255, 0, 0), 1);
@@ -55,6 +59,13 @@ namespace CSGO_ESP
 
         [DllImport("user32.dll")]
         extern static short GetAsyncKeyState(int vKey);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+        public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint cButtons, uint dwExtraInfo);
+        private const int MOUSEEVENTF_LEFTDOWN = 0x02;
+        private const int MOUSEEVENTF_LEFTUP = 0x04;
+        private const int MOUSEEVENTF_RIGHTDOWN = 0x08;
+        private const int MOUSEEVENTF_RIGHTUP = 0x10;
 
 
 
@@ -90,22 +101,53 @@ namespace CSGO_ESP
             while (true)
             {
                 UpdateLocalPlayer();
+
                 UpdateEntites();
 
                 UpdateAimBot();
 
-                panel1.Refresh();
+                UpdateTriggerBot();
 
                 Skinchanger();
 
-                Thread.Sleep(12);
+                panel1.Refresh();
+
+                Thread.Sleep(15);
             }
+        }
+
+
+        public void UpdateTriggerBot()
+        {
+            if (GetAsyncKeyState(f2.TriggerBot_key) < 0)
+            {
+                var buffer = swed.ReadPointer(client, LocalPlayer);
+                var crosshairid = BitConverter.ToInt32(swed.ReadBytes(buffer, CrosshairId, 4), 0);
+                var myteam = BitConverter.ToInt32(swed.ReadBytes(buffer, Team, 4), 0);
+
+                var enemy = swed.ReadPointer(client, EntityList + (crosshairid - 1) * 0x10);
+                var enemyTeam = BitConverter.ToInt32(swed.ReadBytes(enemy, Team, 4), 0);
+                var enemyHealth = BitConverter.ToInt32(swed.ReadBytes(enemy, Health, 4), 0);
+
+                if (myteam != enemyTeam && enemyHealth >= 1)
+                {
+                    Shoot();
+                }
+                ch_value = crosshairid;
+            }
+        }
+
+        public void Shoot()
+        {
+            swed.WriteBytes(client, ForceAttack, BitConverter.GetBytes(5));
+            Thread.Sleep(1);
+            swed.WriteBytes(client, ForceAttack, BitConverter.GetBytes(4));
         }
 
 
         public void UpdateAimBot()
         {
-            double angle = 45;
+            double angle = f2.aimBotMaxAngle;
             double this_angle;
             entity target = null;
             if (f2.enable_AimBot)
@@ -122,7 +164,6 @@ namespace CSGO_ESP
                         }
                     }
                     if (aimBotEntityList.Count > 0)
-                        angle = 45;
                         foreach (var enemy in aimBotEntityList)
                         {
                             this_angle = GetDeltaAngle(enemy);
@@ -132,7 +173,11 @@ namespace CSGO_ESP
                                 target = enemy;
                             }
                         }
-                        Aim(target);
+                        if (target != null)
+                        {
+                            Aim(target);
+                            Shoot();
+                    }
                 }
             }
         }
@@ -149,26 +194,32 @@ namespace CSGO_ESP
 
             var buffer = swed.ReadPointer(engine, ClientState);
             float playerAngleX = BitConverter.ToSingle(swed.ReadBytes(buffer, ClientState_ViewAngles + 0x4, 4), 0);
+            float playerAngleY = BitConverter.ToSingle(swed.ReadBytes(buffer, ClientState_ViewAngles, 4), 0);
+
             if (playerAngleX < 0)
             {
-                playerAngleX = 180 - playerAngleX;
+                playerAngleX = 360 + playerAngleX;
             }
             if (X < 0)
             {
-                X = 180 - X;
+                X = 360 + X;
             }
-                    
 
-            double angle = Math.Abs(X - playerAngleX);
-            return angle ;
+            playerAngleY = 90 - playerAngleY;
+            Y = 90 - Y;
+
+            double angleX = Math.Abs(X - playerAngleX);
+            if (angleX > 180)
+            {
+                angleX= 360 - angleX;
+            }
+
+            double angleY = Math.Abs(Y - playerAngleY);
+            return Math.Sqrt(angleX * angleX + angleY * angleY);
         }
 
         public void Aim(entity ent)
-        {   if (ent == null)
-            {
-                return;
-            }
-
+        {
             float deltaX = ent.head.X - player.feet.X;
             float deltaY = ent.head.Y - player.feet.Y;
             float X = (float)(Math.Atan2(deltaY, deltaX) * 180 / Math.PI);
@@ -203,22 +254,25 @@ namespace CSGO_ESP
 
         void Skinchanger()
         {
-            var buffer = swed.ReadPointer(client, LocalPlayer);
-
-            for (int i = 0; i < 3; i++)
+            if (f2.enable_Skin_changer)
             {
-                var currentweapon = BitConverter.ToInt32(swed.ReadBytes(buffer, MyWeapons + i * 0x4, 4), 0) & 0xfff;
+                var buffer = swed.ReadPointer(client, LocalPlayer);
 
-                var weaponpointer = swed.ReadPointer(client, EntityList + (currentweapon - 1) * 0x10);
-
-                var weaponid = BitConverter.ToInt16(swed.ReadBytes(weaponpointer, ItemDefinitionIndex, 2), 0);
-
-
-                var setting = GetSkin(weaponid);
-
-                if (setting != null)
+                for (int i = 0; i < 3; i++)
                 {
-                    ApplySkin(weaponpointer, setting);
+                    var currentweapon = BitConverter.ToInt32(swed.ReadBytes(buffer, MyWeapons + i * 0x4, 4), 0) & 0xfff;
+
+                    var weaponpointer = swed.ReadPointer(client, EntityList + (currentweapon - 1) * 0x10);
+
+                    var weaponid = BitConverter.ToInt16(swed.ReadBytes(weaponpointer, ItemDefinitionIndex, 2), 0);
+
+
+                    var setting = GetSkin(weaponid);
+
+                    if (setting != null)
+                    {
+                        ApplySkin(weaponpointer, setting);
+                    }
                 }
             }
         }
@@ -411,19 +465,31 @@ namespace CSGO_ESP
         {
             enemyPen.Width = f2.enemy_line_width;
             teamPen.Width = f2.team_line_width;
-
+            Font drawFont = new Font("Arial", 30);
 
             var g = e.Graphics;
+
+            int r = (int)((Width / 2) * Math.Sin(f2.aimBotMaxAngle * (Math.PI / 108)));
+            g.DrawEllipse(new Pen(Color.White), (Width - r)/2, (Height - r)/2, r, r);
+
+            g.DrawString(ch_value.ToString(), drawFont, new SolidBrush(Color.White), 10, 1000);
+
             if (entityList.Count > 0 && f2.enable_ESP)
             {
                 try
                 {
                     foreach (var ent in entityList)
                     {
+                        int hp = ent.health;
+                        Pen hp_pen = new Pen(Color.FromArgb((int)(255 * MathF.Pow((float)(1 - hp / 100.0f), 0.4f)), (int)(255 * MathF.Pow((float)(hp / 100.0f), 0.4f)), 0), 5);
+                        Point bottom = new Point(ent.rect().Left, ent.rect().Bottom + 1);
+                        Point top = new Point(ent.rect().Left, ent.rect().Top + (int)((double)(ent.rect().Bottom - ent.rect().Top) * (1 - (double)hp / 100)));
+
                         if (ent.team == player.team && ent.bot.X > 0 && ent.bot.X < Width && ent.bot.Y > 0 && ent.bot.Y < Height)
                         {
                             g.DrawRectangle(teamPen, ent.rect());
                             g.DrawLine(teamPen, Width/2, Height, ent.bot.X, ent.bot.Y);
+                            g.DrawLine(hp_pen, top, bottom);
                             if (f2.enable_HP)
                             {
                                 DrawHP(g, ent);
@@ -435,6 +501,7 @@ namespace CSGO_ESP
                         {
                             g.DrawRectangle(enemyPen, ent.rect());
                             g.DrawLine(enemyPen, Width / 2, Height , ent.bot.X, ent.bot.Y);
+                            g.DrawLine(hp_pen, top, bottom);
                             if (f2.enable_HP)
                             {
                                 DrawHP(g, ent);
