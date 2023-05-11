@@ -26,8 +26,9 @@ namespace CSGO_ESP
         const int CrosshairId = 0x11838;
         const int ForceAttack = 0x322CD38;
 
-        const int vecOrigin = 0x138;
-        const int vecViewOffset = 0x108;
+        const int ModelIndex = 0x258;
+        const int VecOrigin = 0x138;
+        const int VecViewOffset = 0x108;
         const int Team = 0xF4;
         const int Dormant = 0xED;
         const int Health = 0x100;
@@ -38,8 +39,12 @@ namespace CSGO_ESP
         const int ClientState_ViewAngles = 0x4D90;
         const int BoneMatrix = 0x26A8;
 
-        int ch_value = 0;
+        readonly int[] BonesIndexes_model_1 = { 0, 7, 8, 11, 12, 13, 39, 40, 41, 67, 68, 74, 75 };
+        readonly int[] BonesIndexes_model_2 = { 0, 7, 8, 11, 12, 13, 40, 41, 42, 73, 74, 82, 83 };
+        readonly int[] BonesIndexes_model_3 = { 0, 7, 8, 11, 12, 13, 41, 42, 43, 71, 72, 78, 79 };
 
+        int value = 0;
+        
         Pen teamPen = new Pen(Color.FromArgb(0, 0, 255), 1);
         Pen enemyPen = new Pen(Color.FromArgb(255, 0, 0), 1);
 
@@ -112,7 +117,7 @@ namespace CSGO_ESP
 
                 panel1.Refresh();
 
-                Thread.Sleep(15);
+                Thread.Sleep(12);
             }
         }
 
@@ -133,7 +138,6 @@ namespace CSGO_ESP
                 {
                     Shoot();
                 }
-                ch_value = crosshairid;
             }
         }
 
@@ -309,7 +313,7 @@ namespace CSGO_ESP
         void UpdateLocalPlayer()
         {
             var buffer = swed.ReadPointer(client, LocalPlayer);
-            var coords = swed.ReadBytes(buffer, vecOrigin, 12);
+            var coords = swed.ReadBytes(buffer, VecOrigin, 12);
 
             player.feet.X = BitConverter.ToSingle(coords, 0);
             player.feet.Y = BitConverter.ToSingle(coords, 4);
@@ -317,7 +321,7 @@ namespace CSGO_ESP
 
 
             player.team = BitConverter.ToInt32(swed.ReadBytes(buffer, Team, 4), 0);
-            player.feet.Z += BitConverter.ToSingle(swed.ReadBytes(buffer, vecViewOffset + 0x8, 4), 0);
+            player.feet.Z += BitConverter.ToSingle(swed.ReadBytes(buffer, VecViewOffset + 0x8, 4), 0);
         }
 
 
@@ -338,7 +342,7 @@ namespace CSGO_ESP
                     continue;
                 }
 
-                var coords = swed.ReadBytes(buffer, vecOrigin, 12);
+                var coords = swed.ReadBytes(buffer, VecOrigin, 12);
 
                 var ent = new entity
                 {
@@ -350,12 +354,25 @@ namespace CSGO_ESP
                     health = hp
                 };
 
-                ent.bot = WorldToScreen(ReadMatrix(), ent.x, ent.y, ent.z, Width, Height);
-                ent.top = WorldToScreen(ReadMatrix(), ent.x, ent.y, ent.z + 58, Width, Height);
+                viewmatrix vmtrx = ReadMatrix();
+                ent.bot = WorldToScreen(vmtrx, ent.x, ent.y, ent.z, Width, Height);
+                ent.top = WorldToScreen(vmtrx, ent.x, ent.y, ent.z + 58, Width, Height);
 
                 ent.mag = GetMag(player.feet, ent.head);
 
+                ent.modelIndex = BitConverter.ToInt32(swed.ReadBytes(buffer, ModelIndex, 4), 0);
 
+                if (ent.team == 2)
+                {
+                    ent.boneMatrix = GetBoneMatrix(buffer, BonesIndexes_model_1);
+                }
+                else
+                {
+                    ent.boneMatrix = GetBoneMatrix(buffer, BonesIndexes_model_2);
+                }
+                
+                
+                value = ent.modelIndex;
                 entityList.Add(ent);
             }
         }
@@ -381,6 +398,26 @@ namespace CSGO_ESP
                 Y = BitConverter.ToSingle(bone, 0x1C),
                 Z = BitConverter.ToSingle(bone, 0x2C)
             };
+        }
+
+
+        List<Vector3> GetBoneMatrix(IntPtr buffer, int[] BonesIndexes)
+        {
+            List<Vector3> matrix = new List<Vector3>();
+            var bones = swed.ReadPointer(buffer, BoneMatrix);
+
+            foreach (int index in BonesIndexes)
+            {
+                var bone = swed.ReadBytes(bones, 0x30 * index, 0x30);
+                matrix.Add(new Vector3
+                {
+                    X = BitConverter.ToSingle(bone, 0xC),
+                    Y = BitConverter.ToSingle(bone, 0x1C),
+                    Z = BitConverter.ToSingle(bone, 0x2C)
+                });
+            }
+
+            return matrix;
         }
 
 
@@ -445,7 +482,7 @@ namespace CSGO_ESP
             }
         }
 
-        public void DrawHP(Graphics g, entity ent)
+        public void DrawHPValue(Graphics g, entity ent)
         {
             int hp = ent.health;
 
@@ -461,6 +498,43 @@ namespace CSGO_ESP
             g.DrawString(String, drawFont, Brush, x, y);
         }
 
+        public void DrawHPBar(Graphics g, entity ent)
+        {
+            int hp = ent.health;
+            Pen hp_pen = new Pen(Color.FromArgb((int)(255 * MathF.Pow((float)(1 - hp / 100.0f), 0.4f)), (int)(255 * MathF.Pow((float)(hp / 100.0f), 0.4f)), 0), 10);
+            Point bottom = new Point(ent.rect().Left - 10, ent.rect().Bottom + 1);
+            Point top = new Point(ent.rect().Left - 10, ent.rect().Top + (int)((double)(ent.rect().Bottom - ent.rect().Top) * (1 - (double)hp / 100)));
+            g.DrawLine(hp_pen, top, bottom);
+        }
+
+        public void DrawSkeleton(Graphics g, entity ent)
+        {
+            Pen pen = new Pen(Color.White);
+            Point[] bonePoints = new Point[13];
+            viewmatrix vmtrx = ReadMatrix();
+
+            for (int i = 0; i < 13; i++)
+            {
+                bonePoints[i] = WorldToScreen(vmtrx, ent.boneMatrix[i].X, ent.boneMatrix[i].Y, ent.boneMatrix[i].Z, Width, Height);
+            }
+
+            g.DrawLine(pen, bonePoints[0], bonePoints[1]);
+            g.DrawLine(pen, bonePoints[1], bonePoints[2]);
+            g.DrawLine(pen, bonePoints[1], bonePoints[3]);
+            g.DrawLine(pen, bonePoints[3], bonePoints[4]);
+            g.DrawLine(pen, bonePoints[4], bonePoints[5]);
+            g.DrawLine(pen, bonePoints[1], bonePoints[6]);
+            g.DrawLine(pen, bonePoints[6], bonePoints[7]);
+            g.DrawLine(pen, bonePoints[7], bonePoints[8]);
+            g.DrawLine(pen, bonePoints[0], bonePoints[9]);
+            g.DrawLine(pen, bonePoints[9], bonePoints[10]);
+            g.DrawLine(pen, bonePoints[0], bonePoints[11]);
+            g.DrawLine(pen, bonePoints[11], bonePoints[12]);
+
+            int r = (int)(ent.bot.Y - ent.top.Y) / 5;
+            g.DrawEllipse(pen, bonePoints[2].X - r / 2, bonePoints[2].Y - r / 2, r, r);
+        }
+
         private void panel1_Paint(object sender, PaintEventArgs e)
         {
             enemyPen.Width = f2.enemy_line_width;
@@ -469,51 +543,46 @@ namespace CSGO_ESP
 
             var g = e.Graphics;
 
-            int r = (int)((Width / 2) * Math.Sin(f2.aimBotMaxAngle * (Math.PI / 108)));
-            g.DrawEllipse(new Pen(Color.White), (Width - r)/2, (Height - r)/2, r, r);
-
-            g.DrawString(ch_value.ToString(), drawFont, new SolidBrush(Color.White), 10, 1000);
-
-            if (entityList.Count > 0 && f2.enable_ESP)
+            try
             {
-                try
+                foreach (var ent in entityList)
                 {
-                    foreach (var ent in entityList)
-                    {
-                        int hp = ent.health;
-                        Pen hp_pen = new Pen(Color.FromArgb((int)(255 * MathF.Pow((float)(1 - hp / 100.0f), 0.4f)), (int)(255 * MathF.Pow((float)(hp / 100.0f), 0.4f)), 0), 5);
-                        Point bottom = new Point(ent.rect().Left, ent.rect().Bottom + 1);
-                        Point top = new Point(ent.rect().Left, ent.rect().Top + (int)((double)(ent.rect().Bottom - ent.rect().Top) * (1 - (double)hp / 100)));
+                    DrawSkeleton(g, ent);
 
+                    if (f2.enable_ESP)
+                    {
                         if (ent.team == player.team && ent.bot.X > 0 && ent.bot.X < Width && ent.bot.Y > 0 && ent.bot.Y < Height)
                         {
                             g.DrawRectangle(teamPen, ent.rect());
-                            g.DrawLine(teamPen, Width/2, Height, ent.bot.X, ent.bot.Y);
-                            g.DrawLine(hp_pen, top, bottom);
-                            if (f2.enable_HP)
-                            {
-                                DrawHP(g, ent);
-                            }
-                            
+                            g.DrawLine(teamPen, Width / 2, Height, ent.bot.X, ent.bot.Y);
+
                         }
 
                         else if (ent.team != player.team && ent.bot.X > 0 && ent.bot.X < Width && ent.bot.Y > 0 && ent.bot.Y < Height)
                         {
                             g.DrawRectangle(enemyPen, ent.rect());
-                            g.DrawLine(enemyPen, Width / 2, Height , ent.bot.X, ent.bot.Y);
-                            g.DrawLine(hp_pen, top, bottom);
-                            if (f2.enable_HP)
-                            {
-                                DrawHP(g, ent);
-                            }
+                            g.DrawLine(enemyPen, Width / 2, Height, ent.bot.X, ent.bot.Y);
                         }
-
-                            
                     }
 
+                    
+
+                    if (f2.enable_HP)
+                    {
+                        DrawHPBar(g, ent);
+                        //DrawHPValue(g, ent);
+                    }
                 }
-                catch { }
             }
+            catch { }
+
+            if (f2.enable_AimBot == true)
+            {
+                int r = (int)((Width / 2) * Math.Sin(f2.aimBotMaxAngle * (Math.PI / 108)));
+                g.DrawEllipse(new Pen(Color.White), (Width - r) / 2, (Height - r) / 2, r, r);
+            }
+
+            g.DrawString(value.ToString(), drawFont, new SolidBrush(Color.White), 10, 1000);
         }
     }
 }

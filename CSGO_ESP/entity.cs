@@ -15,6 +15,8 @@ namespace winformtemplate
         public float x, y, z, mag;
         public Point top, bot;
         public Vector3 feet, head;
+        public List<Vector3> boneMatrix = new List<Vector3>();
+        public int modelIndex;
         public Rectangle rect()
         {
             return new Rectangle

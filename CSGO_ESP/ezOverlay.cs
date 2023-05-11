@@ -7,32 +7,6 @@ using System.Threading;
 
 namespace ezOverLay
 {
-    /* This is my first ever dll, I made all of this in about 5 hours. There will be things that might not work.
-     * 
-     * Subscribe to swedish twat 
-     * 
-     * TO use ezOverLay.dll compile this poject and there will be a dll located in the bin folder. 
-     * Reference it in your own project and add these things.
-     * 
-     * At the very start add this 
-     * 
-     * using ezOverLay;
-     * 
-     * 
-     * Under the class 
-     * 
-     * ez ez = new ez();
-     * 
-     * 
-     * Now add this in your load method
-     * 
-     * CheckForIllegalThreadCalls = false;
-     * ez.SetInvi(this);
-     * ez.StartLoop(10, "windowname", this);
-     * 
-     * If you don't understand this then watch my next video that explains how to use this dll ;)
-     */
-
     public class ez
     {
         public static IntPtr hand;
