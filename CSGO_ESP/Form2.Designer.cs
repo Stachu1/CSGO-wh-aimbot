@@ -64,7 +64,7 @@
             // trackBar1
             // 
             this.trackBar1.LargeChange = 1;
-            this.trackBar1.Location = new System.Drawing.Point(12, 262);
+            this.trackBar1.Location = new System.Drawing.Point(12, 281);
             this.trackBar1.Minimum = 1;
             this.trackBar1.Name = "trackBar1";
             this.trackBar1.Size = new System.Drawing.Size(288, 56);
@@ -75,7 +75,7 @@
             // trackBar2
             // 
             this.trackBar2.LargeChange = 1;
-            this.trackBar2.Location = new System.Drawing.Point(12, 341);
+            this.trackBar2.Location = new System.Drawing.Point(12, 381);
             this.trackBar2.Minimum = 1;
             this.trackBar2.Name = "trackBar2";
             this.trackBar2.Size = new System.Drawing.Size(288, 56);
@@ -89,7 +89,7 @@
             this.textBox1.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.textBox1.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.textBox1.ForeColor = System.Drawing.Color.White;
-            this.textBox1.Location = new System.Drawing.Point(12, 303);
+            this.textBox1.Location = new System.Drawing.Point(12, 343);
             this.textBox1.Name = "textBox1";
             this.textBox1.Size = new System.Drawing.Size(233, 32);
             this.textBox1.TabIndex = 3;
@@ -101,7 +101,7 @@
             this.textBox2.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.textBox2.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.textBox2.ForeColor = System.Drawing.Color.White;
-            this.textBox2.Location = new System.Drawing.Point(12, 224);
+            this.textBox2.Location = new System.Drawing.Point(12, 243);
             this.textBox2.Name = "textBox2";
             this.textBox2.Size = new System.Drawing.Size(233, 32);
             this.textBox2.TabIndex = 4;
@@ -201,7 +201,7 @@
             // trackBar3
             // 
             this.trackBar3.LargeChange = 1;
-            this.trackBar3.Location = new System.Drawing.Point(12, 131);
+            this.trackBar3.Location = new System.Drawing.Point(12, 181);
             this.trackBar3.Maximum = 30;
             this.trackBar3.Name = "trackBar3";
             this.trackBar3.Size = new System.Drawing.Size(288, 56);

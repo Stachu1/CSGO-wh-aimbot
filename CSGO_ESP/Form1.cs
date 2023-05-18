@@ -1,13 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-using System.Threading;
 using ezOverLay;
 using swed32;
 using winformtemplate;
@@ -20,13 +11,12 @@ namespace CSGO_ESP
     public partial class Form1 : Form
     {
         const int LocalPlayer = 0xDE997C;
-        const int EntityList = 0x4DFEECC;
-        const int Viewmatrix = 0x4DEFD14;
+        const int EntityList = 0x4DFEF0C;
+        const int Viewmatrix = 0x4DEFD54;
         const int ClientState = 0x59F19C;
         const int CrosshairId = 0x11838;
-        const int ForceAttack = 0x322CD38;
+        const int ForceAttack = 0x322CD48;
 
-        const int ModelIndex = 0x258;
         const int VecOrigin = 0x138;
         const int VecViewOffset = 0x108;
         const int Team = 0xF4;
@@ -73,10 +63,11 @@ namespace CSGO_ESP
         private const int MOUSEEVENTF_RIGHTUP = 0x10;
 
 
-
         public Form1()
         {
             InitializeComponent();
+            this.DoubleBuffered = true;
+
             f1 = this;
             f1.Text = "SB_ELO_ESP";
 
@@ -360,8 +351,6 @@ namespace CSGO_ESP
 
                 ent.mag = GetMag(player.feet, ent.head);
 
-                ent.modelIndex = BitConverter.ToInt32(swed.ReadBytes(buffer, ModelIndex, 4), 0);
-
                 if (ent.team == 2)
                 {
                     ent.boneMatrix = GetBoneMatrix(buffer, BonesIndexes_model_1);
@@ -372,7 +361,6 @@ namespace CSGO_ESP
                 }
                 
                 
-                value = ent.modelIndex;
                 entityList.Add(ent);
             }
         }
@@ -519,7 +507,7 @@ namespace CSGO_ESP
             }
 
             g.DrawLine(pen, bonePoints[0], bonePoints[1]);
-            g.DrawLine(pen, bonePoints[1], bonePoints[2]);
+            // g.DrawLine(pen, bonePoints[1], bonePoints[2]);
             g.DrawLine(pen, bonePoints[1], bonePoints[3]);
             g.DrawLine(pen, bonePoints[3], bonePoints[4]);
             g.DrawLine(pen, bonePoints[4], bonePoints[5]);
@@ -531,8 +519,8 @@ namespace CSGO_ESP
             g.DrawLine(pen, bonePoints[0], bonePoints[11]);
             g.DrawLine(pen, bonePoints[11], bonePoints[12]);
 
-            int r = (int)(ent.bot.Y - ent.top.Y) / 5;
-            g.DrawEllipse(pen, bonePoints[2].X - r / 2, bonePoints[2].Y - r / 2, r, r);
+            int r = (int)Math.Sqrt(Math.Pow(bonePoints[2].X - bonePoints[1].X, 2) + Math.Pow(bonePoints[2].Y - bonePoints[1].Y, 2));
+            g.DrawEllipse(pen, bonePoints[2].X - r, bonePoints[2].Y - r, 2*r, 2*r);
         }
 
         private void panel1_Paint(object sender, PaintEventArgs e)
@@ -551,14 +539,14 @@ namespace CSGO_ESP
 
                     if (f2.enable_ESP)
                     {
-                        if (ent.team == player.team && ent.bot.X > 0 && ent.bot.X < Width && ent.bot.Y > 0 && ent.bot.Y < Height)
+                        if (ent.team == player.team)
                         {
                             g.DrawRectangle(teamPen, ent.rect());
                             g.DrawLine(teamPen, Width / 2, Height, ent.bot.X, ent.bot.Y);
 
                         }
 
-                        else if (ent.team != player.team && ent.bot.X > 0 && ent.bot.X < Width && ent.bot.Y > 0 && ent.bot.Y < Height)
+                        else if (ent.team != player.team)
                         {
                             g.DrawRectangle(enemyPen, ent.rect());
                             g.DrawLine(enemyPen, Width / 2, Height, ent.bot.X, ent.bot.Y);
